@@ -165,7 +165,9 @@ if st.session_state.selected_idx is not None:
     st.markdown("---")
     st.subheader("Recommended Movies")
     results = recommend_by_index(st.session_state.selected_idx, df, tfidf_matrix, nn_model, top_n=REC_TOP_N)
-    render_static_grid(results, columns_per_row=REC_COLUMNS)
+    st.markdown('<div class="plain-grid">', unsafe_allow_html=True)
+    render_selectable_grid(results, columns_per_row=REC_COLUMNS, key_prefix="rec")
+    st.markdown('</div>', unsafe_allow_html=True)
 
 elif query_stripped:
     st.markdown("---")

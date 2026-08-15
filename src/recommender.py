@@ -98,11 +98,13 @@ def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
     distances, indices = nn_model.kneighbors(tfidf_matrix[idx])
     distances, indices = distances.flatten(), indices.flatten()
 
-    results = []
+    rows = []
+    result_index = []
     for dist, i in zip(distances, indices):
         if i == idx:
             continue
-        results.append({
+        result_index.append(df.index[i])   # preserve the movie's real df index
+        rows.append({
             'title': df.iloc[i]['title'],
             'similarity_score': round(1 - dist, 4),
             'vote_average': df.iloc[i]['vote_average'],
@@ -111,10 +113,8 @@ def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
             'poster_path': df.iloc[i]['poster_path']
         })
 
-    return (pd.DataFrame(results)
-            .sort_values('similarity_score', ascending=False)
-            .head(top_n)
-            .reset_index(drop=True))
+    result_df = pd.DataFrame(rows, index=result_index)   # index carried over, not reset
+    return result_df.sort_values('similarity_score', ascending=False).head(top_n)
 
 
 def _fmt_rating(val):
