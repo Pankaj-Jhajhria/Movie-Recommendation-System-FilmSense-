@@ -29,20 +29,19 @@ def search_titles(query, df, max_results=10, fuzzy_cutoff=0.6):
     norm_titles = df['title'].apply(normalize_title)
 
     exact_mask = norm_titles == query_norm
-    if exact_mask.any():
-        return df[exact_mask].head(max_results)
+    partial_mask = norm_titles.str.contains(re.escape(query_norm), regex=True) & ~exact_mask
 
-    partial_mask = norm_titles.str.contains(re.escape(query_norm), regex=True)
-    if partial_mask.any():
-        matches = df[partial_mask]
+    if exact_mask.any() or partial_mask.any():
+        exact_df = df[exact_mask]
+        partial_df = df[partial_mask]
         length_diff = (norm_titles[partial_mask].str.len() - len(query_norm)).abs()
-        return matches.loc[length_diff.sort_values().index].head(max_results)
+        partial_df = partial_df.loc[length_diff.sort_values().index]
+        return pd.concat([exact_df, partial_df]).head(max_results)
 
     unique_norms = norm_titles.unique().tolist()
     close = difflib.get_close_matches(query_norm, unique_norms, n=max_results, cutoff=fuzzy_cutoff)
     if close:
-        fuzzy_mask = norm_titles.isin(close)
-        return df[fuzzy_mask].head(max_results)
+        return df[norm_titles.isin(close)].head(max_results)
 
     return pd.DataFrame()
 
