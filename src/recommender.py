@@ -9,6 +9,81 @@ from scipy import sparse
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR.parent.parent / "Data" / "New"
 
+import re
+
+def normalize_title(text):
+    """Lowercase and strip everything except letters/digits, so 'Spider-Man'
+    and 'spiderman' become identical, punctuation/spacing stops mattering."""
+    if pd.isna(text):
+        return ""
+    return re.sub(r'[^a-z0-9]', '', str(text).lower())
+
+
+def search_titles(query, df, max_results=10, fuzzy_cutoff=0.6):
+    """
+    Case-insensitive, partial, and fuzzy title search.
+    Returns candidate rows ranked: exact match > partial match > fuzzy match.
+    """
+    query_norm = normalize_title(query)
+    if not query_norm:
+        return pd.DataFrame()
+
+    norm_titles = df['title'].apply(normalize_title)
+
+    # 1. Exact match (after normalization) — handles "spiderman" -> "Spider-Man"
+    exact_mask = norm_titles == query_norm
+    if exact_mask.any():
+        return df[exact_mask].head(max_results)
+
+    # 2. Partial / substring match — handles "inter" -> "Interstellar",
+    #    "dark knight" -> "The Dark Knight"
+    partial_mask = norm_titles.str.contains(re.escape(query_norm), regex=True)
+    if partial_mask.any():
+        matches = df[partial_mask]
+        # rank tighter matches (title length closer to query length) first
+        length_diff = (norm_titles[partial_mask].str.len() - len(query_norm)).abs()
+        return matches.loc[length_diff.sort_values().index].head(max_results)
+
+    # 3. Fuzzy match — catches typos, e.g. "intersteller", "spidrman"
+    unique_norms = norm_titles.unique().tolist()
+    close = difflib.get_close_matches(query_norm, unique_norms, n=max_results, cutoff=fuzzy_cutoff)
+    if close:
+        fuzzy_mask = norm_titles.isin(close)
+        return df[fuzzy_mask].head(max_results)
+
+    return pd.DataFrame()
+
+
+def select_movie(query, df):
+    """
+    Runs search_titles and, if multiple candidates are found, lets the
+    user pick interactively. Returns the chosen row's df index, or None.
+    """
+    matches = search_titles(query, df)
+
+    if matches.empty:
+        print(f"No movies found matching '{query}'.")
+        return None
+
+    if len(matches) == 1:
+        row = matches.iloc[0]
+        print(f"Found: {row['title']} ({_fmt_year(row['release_date'])})")
+        return row.name  # original df index
+
+    print(f"\nMultiple matches found for '{query}':\n")
+    for i, (_, row) in enumerate(matches.iterrows(), start=1):
+        print(f"  {i}. {row['title']}  ({_fmt_year(row['release_date'])}, {_fmt_rating(row['vote_average'])})")
+
+    choice = input(f"\nSelect a movie [1-{len(matches)}] (Enter to cancel): ").strip()
+    if not choice:
+        print("Cancelled.")
+        return None
+
+    if choice.isdigit() and 1 <= int(choice) <= len(matches):
+        return matches.iloc[int(choice) - 1].name
+
+    print("Invalid selection.")
+    return None
 
 def load_artifacts():
     df = pd.read_csv(DATA_DIR / "Dataset_Final.csv")
@@ -18,19 +93,7 @@ def load_artifacts():
     return df, tfidf_matrix, nn_model
 
 
-def recommend(movie_title, df, tfidf_matrix, nn_model, top_n=10):
-    title_to_index = pd.Series(df.index, index=df['title'])
-    title_to_index = title_to_index[~title_to_index.index.duplicated(keep='first')]
-
-    if movie_title not in title_to_index:
-        close = difflib.get_close_matches(movie_title, title_to_index.index, n=5, cutoff=0.6)
-        msg = f"'{movie_title}' not found in dataset."
-        if close:
-            msg += f" Did you mean: {close}?"
-        print(msg)
-        return None
-
-    idx = title_to_index[movie_title]
+def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
     distances, indices = nn_model.kneighbors(tfidf_matrix[idx])
     distances, indices = distances.flatten(), indices.flatten()
 
@@ -92,13 +155,18 @@ def print_recommendations(movie_title, results):
 
 def main():
     parser = argparse.ArgumentParser(description="Movie recommendation CLI")
-    parser.add_argument("title", type=str, help="Exact movie title to get recommendations for")
+    parser.add_argument("title", type=str, help="Movie title to search (partial/fuzzy matching supported)")
     parser.add_argument("--top_n", type=int, default=10, help="Number of recommendations (default 10)")
     args = parser.parse_args()
 
     df, tfidf_matrix, nn_model = load_artifacts()
-    results = recommend(args.title, df, tfidf_matrix, nn_model, top_n=args.top_n)
-    print_recommendations(args.title, results)
+
+    idx = select_movie(args.title, df)
+    if idx is None:
+        return
+
+    results = recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=args.top_n)
+    print_recommendations(df.loc[idx, 'title'], results)
 
 
 if __name__ == "__main__":
