@@ -1,7 +1,7 @@
 import argparse
 import pickle
 import difflib
-import textwrap
+import re
 from pathlib import Path
 import pandas as pd
 from scipy import sparse
@@ -9,42 +9,35 @@ from scipy import sparse
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR.parent.parent / "Data" / "New"
 
-import re
+# ---- Dataset 2 artifacts ----
+DATASET_FILE = "Final_Dataset_2.csv"
+TFIDF_MATRIX_FILE = "tfidf_matrix2.npz"
+NN_MODEL_FILE = "nearest_neighbors2.pkl"
+
 
 def normalize_title(text):
-    """Lowercase and strip everything except letters/digits, so 'Spider-Man'
-    and 'spiderman' become identical, punctuation/spacing stops mattering."""
     if pd.isna(text):
         return ""
     return re.sub(r'[^a-z0-9]', '', str(text).lower())
 
 
 def search_titles(query, df, max_results=10, fuzzy_cutoff=0.6):
-    """
-    Case-insensitive, partial, and fuzzy title search.
-    Returns candidate rows ranked: exact match > partial match > fuzzy match.
-    """
     query_norm = normalize_title(query)
     if not query_norm:
         return pd.DataFrame()
 
     norm_titles = df['title'].apply(normalize_title)
 
-    # 1. Exact match (after normalization) — handles "spiderman" -> "Spider-Man"
     exact_mask = norm_titles == query_norm
     if exact_mask.any():
         return df[exact_mask].head(max_results)
 
-    # 2. Partial / substring match — handles "inter" -> "Interstellar",
-    #    "dark knight" -> "The Dark Knight"
     partial_mask = norm_titles.str.contains(re.escape(query_norm), regex=True)
     if partial_mask.any():
         matches = df[partial_mask]
-        # rank tighter matches (title length closer to query length) first
         length_diff = (norm_titles[partial_mask].str.len() - len(query_norm)).abs()
         return matches.loc[length_diff.sort_values().index].head(max_results)
 
-    # 3. Fuzzy match — catches typos, e.g. "intersteller", "spidrman"
     unique_norms = norm_titles.unique().tolist()
     close = difflib.get_close_matches(query_norm, unique_norms, n=max_results, cutoff=fuzzy_cutoff)
     if close:
@@ -55,10 +48,6 @@ def search_titles(query, df, max_results=10, fuzzy_cutoff=0.6):
 
 
 def select_movie(query, df):
-    """
-    Runs search_titles and, if multiple candidates are found, lets the
-    user pick interactively. Returns the chosen row's df index, or None.
-    """
     matches = search_titles(query, df)
 
     if matches.empty:
@@ -67,12 +56,12 @@ def select_movie(query, df):
 
     if len(matches) == 1:
         row = matches.iloc[0]
-        print(f"Found: {row['title']} ({_fmt_year(row['release_date'])})")
-        return row.name  # original df index
+        print(f"Found: {row['title']} ({_fmt_year(row['release_year'])})")
+        return row.name
 
     print(f"\nMultiple matches found for '{query}':\n")
     for i, (_, row) in enumerate(matches.iterrows(), start=1):
-        print(f"  {i}. {row['title']}  ({_fmt_year(row['release_date'])}, {_fmt_rating(row['vote_average'])})")
+        print(f"  {i}. {row['title']}  ({_fmt_year(row['release_year'])}, {_fmt_rating(row['vote_average'])})")
 
     choice = input(f"\nSelect a movie [1-{len(matches)}] (Enter to cancel): ").strip()
     if not choice:
@@ -85,11 +74,24 @@ def select_movie(query, df):
     print("Invalid selection.")
     return None
 
+
 def load_artifacts():
-    df = pd.read_csv(DATA_DIR / "Dataset_Final.csv")
-    tfidf_matrix = sparse.load_npz(DATA_DIR / "tfidf_matrix.npz")
-    with open(DATA_DIR / "nearest_neighbors.pkl", "rb") as f:
+    df = pd.read_csv(DATA_DIR / DATASET_FILE)
+    tfidf_matrix = sparse.load_npz(DATA_DIR / TFIDF_MATRIX_FILE)
+
+    nn_path = DATA_DIR / NN_MODEL_FILE
+    if not nn_path.exists():
+        raise FileNotFoundError(
+            f"'{NN_MODEL_FILE}' not found in {DATA_DIR}. Run the training cell "
+            "that fits NearestNeighbors on tfidf_matrix2 and saves it first."
+        )
+    with open(nn_path, "rb") as f:
         nn_model = pickle.load(f)
+
+    assert df.shape[0] == tfidf_matrix.shape[0], (
+        f"Row mismatch: {DATASET_FILE} has {df.shape[0]} rows, "
+        f"{TFIDF_MATRIX_FILE} has {tfidf_matrix.shape[0]} rows."
+    )
     return df, tfidf_matrix, nn_model
 
 
@@ -105,7 +107,8 @@ def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
             'title': df.iloc[i]['title'],
             'similarity_score': round(1 - dist, 4),
             'vote_average': df.iloc[i]['vote_average'],
-            'release_date': df.iloc[i]['release_date'],
+            'imdb_rating': df.iloc[i]['IMDB_Rating'],
+            'release_year': df.iloc[i]['release_year'],
             'poster_path': df.iloc[i]['poster_path']
         })
 
@@ -124,9 +127,12 @@ def _fmt_rating(val):
 
 
 def _fmt_year(val):
-    if pd.isna(val) or str(val).strip() == "":
+    if pd.isna(val):
         return "Unknown"
-    return str(val).strip("() ")  # strips stray parentheses like "(2018)"
+    try:
+        return str(int(float(val)))  # handles 2021.0 -> "2021"
+    except (ValueError, TypeError):
+        return str(val).strip("() ")
 
 
 def _fmt_poster(val, width=70):
@@ -145,10 +151,11 @@ def print_recommendations(movie_title, results):
 
     for rank, row in results.iterrows():
         print(f"\n{rank + 1}. {row['title']}")
-        print(f"   {'Similarity':<10}: {row['similarity_score']:.4f}")
-        print(f"   {'Rating':<10}: {_fmt_rating(row['vote_average'])}")
-        print(f"   {'Released':<10}: {_fmt_year(row['release_date'])}")
-        print(f"   {'Poster':<10}: {_fmt_poster(row['poster_path'])}")
+        print(f"   {'Similarity':<12}: {row['similarity_score']:.4f}")
+        print(f"   {'TMDB Rating':<12}: {_fmt_rating(row['vote_average'])}")
+        print(f"   {'IMDB Rating':<12}: {_fmt_rating(row['imdb_rating'])}")
+        print(f"   {'Released':<12}: {_fmt_year(row['release_year'])}")
+        print(f"   {'Poster':<12}: {_fmt_poster(row['poster_path'])}")
 
     print("\n" + "=" * 64 + "\n")
 
