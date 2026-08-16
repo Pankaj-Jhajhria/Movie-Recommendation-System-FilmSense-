@@ -3,12 +3,15 @@ import base64
 from pathlib import Path
 
 import streamlit as st
+import random
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 ASSETS_DIR = BASE_DIR / "Assets"
 LOGO_PATH = ASSETS_DIR / "Logo.png"
+BG_PATH = ASSETS_DIR / "UI_Background.png"
+SIDEBAR_BG_PATH = ASSETS_DIR / "red_sidebar.jpg"
 sys.path.append(str(SRC_DIR))
 
 from recommender import (
@@ -24,7 +27,6 @@ GRID_COLUMNS = 5
 TRENDING_COUNT = 10
 EXPLORE_COUNT = 15
 TOP_RATED_COUNT = 15
-NUM_BG_IMAGES = 3
 
 st.set_page_config(page_title="FilmSense", page_icon=str(LOGO_PATH), layout="wide")
 
@@ -62,13 +64,24 @@ def fmt_runtime(minutes):
         return "N/A"
 
 
-def pick_background_images(n=NUM_BG_IMAGES):
-    pool = df["backdrop_path"].dropna()
-    if pool.empty:
-        return []
-    sample = pool.sample(min(n, len(pool)))
-    return [backdrop_url(p) for p in sample]
+NEON_COLORS = ["#00fff2", "#ff00e5", "#b026ff", "#39ff14", "#faff00", "#00d4ff"]
+PARTICLE_COUNT = 45
 
+
+def generate_particles(n=PARTICLE_COUNT):
+    spans = []
+    for _ in range(n):
+        x = round(random.uniform(0, 100), 2)
+        size = round(random.uniform(0.6, 2.4), 2)
+        duration = round(random.uniform(9, 24), 2)
+        delay = round(random.uniform(0, 20), 2)
+        color = random.choice(NEON_COLORS)
+        spans.append(
+            f'<span class="particle" style="'
+            f'--x:{x}%; --size:{size}; --duration:{duration}s; '
+            f'--delay:{delay}s; --color:{color};"></span>'
+        )
+    return "".join(spans)
 
 def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=False):
     """Plain poster + a minimal clickable title/year link beneath it."""
@@ -79,7 +92,7 @@ def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=Fal
             with col:
                 st.image(poster_url(movie["poster_path"]), width='stretch')
                 label = f"{movie['title']} ({_fmt_year(movie['release_year'])})"
-                st.markdown('<div class="grid-btn">', unsafe_allow_html=True)
+                st.markdown('<div class="poster-btn">', unsafe_allow_html=True)
                 clicked = st.button(label, key=f"{key_prefix}_{idx}", width='stretch')
                 st.markdown('</div>', unsafe_allow_html=True)
                 if clicked:
@@ -91,22 +104,21 @@ def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=Fal
 
 # ---------------- session defaults ----------------
 
+# ---------------- session defaults ----------------
+
 defaults = {
     "last_query": "",
     "selected_idx": None,
     "current_page": "Home",
-    "bg_images": None,
-    "bg_tracker": "__init__",
 }
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
-# Background only regenerates when the selected movie actually changes (incl. first load)
-if st.session_state.bg_tracker != st.session_state.selected_idx or st.session_state.bg_images is None:
-    st.session_state.bg_images = pick_background_images()
-    st.session_state.bg_tracker = st.session_state.selected_idx
+if "particles_html" not in st.session_state:
+    st.session_state.particles_html = generate_particles()
 
-bg_imgs_html = "".join(f'<img src="{u}">' for u in st.session_state.bg_images if u)
+bg_b64 = base64.b64encode(BG_PATH.read_bytes()).decode()
+sidebar_bg_b64 = base64.b64encode(SIDEBAR_BG_PATH.read_bytes()).decode()
 
 # ---------------- global styling ----------------
 
@@ -117,28 +129,66 @@ st.markdown(
 
     html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
 
-    #bg-collage {{
+    #bg-fixed {{
         position: fixed;
         inset: 0;
         z-index: -1;
-        display: flex;
-        filter: blur(14px) brightness(0.35) saturate(1.15);
-        transform: scale(1.08);
+        background-image: url('data:image/png;base64,{bg_b64}');
+        background-size: cover;
+        background-position: center;
     }}
-    #bg-collage img {{
-        flex: 1;
-        object-fit: cover;
-        height: 100vh;
-        width: 100%;
+    
+    #particles {{
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        overflow: hidden;
+        pointer-events: none;
     }}
-
-    .stApp {{ background: #0a0a0f; }}
-    [data-testid="stHeader"] {{ background: transparent; }}
-
+    .particle {{
+        position: absolute;
+        bottom: -10px;
+        left: var(--x);
+        width: calc(4px * var(--size));
+        height: calc(4px * var(--size));
+        border-radius: 50%;
+        background: var(--color);
+        box-shadow: 0 0 6px 2px var(--color), 0 0 14px 4px var(--color);
+        opacity: 0;
+        animation: float-up var(--duration) linear infinite;
+        animation-delay: var(--delay);
+    }}
+    @keyframes float-up {{
+        0%   {{ transform: translateY(0) translateX(0); opacity: 0; }}
+        10%  {{ opacity: 0.9; }}
+        50%  {{ transform: translateY(-50vh) translateX(12px); }}
+        90%  {{ opacity: 0.6; }}
+        100% {{ transform: translateY(-105vh) translateX(-12px); opacity: 0; }}
+    }}
+    
+    html, body {{
+    background-color: #0a0a0f;
+    }}
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    .main {{
+        background: transparent !important;
+    }}
+    [data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
+    
     [data-testid="stSidebar"] {{
-        background: rgba(10, 8, 14, 0.92);
+        background-image:
+            linear-gradient(180deg, rgba(10,8,14,0.88) 0%, rgba(10,8,14,0.88) 100%),
+            url('data:image/jpeg;base64,{sidebar_bg_b64}');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
         border-right: 1px solid rgba(230, 57, 70, 0.15);
     }}
+    
     .sidebar-logo {{ display: flex; align-items: center; gap: 10px; }}
     .sidebar-logo img {{ width: 42px; height: 42px; border-radius: 10px; }}
     .sidebar-logo .brand {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; color: #ffffff; }}
@@ -196,6 +246,36 @@ st.markdown(
     }}
     .grid-btn button:hover {{ color: #e63946 !important; }}
 
+    .poster-btn button {{
+        position: relative;
+        z-index: 0;
+        overflow: hidden;
+        background: transparent !important;
+        border: 2px solid #facc15 !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+        color: #4ade80 !important;
+        padding: 10px 12px !important;
+        font-size: 0.82rem !important;
+        font-weight: 600 !important;
+        text-align: left !important;
+        transition: color 0.3s ease;
+    }}
+    .poster-btn button::before {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(0deg, rgba(14,165,233,0.85) 0%, rgba(56,189,248,0.55) 100%);
+        transform: scaleY(0);
+        transform-origin: bottom;
+        transition: transform 1.3s ease;
+        pointer-events: none;
+    }}
+    .poster-btn button:hover::before {{
+        transform: scaleY(1);
+    }}
+    
     .rating-pill {{
         display: inline-block;
         background: rgba(230,57,70,0.15);
@@ -216,7 +296,8 @@ st.markdown(
     }}
     </style>
 
-    <div id="bg-collage">{bg_imgs_html}</div>
+    <div id="bg-fixed"></div>
+    <div id="particles">{st.session_state.particles_html}</div>
     """,
     unsafe_allow_html=True,
 )
