@@ -90,7 +90,9 @@ def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=Fal
         cols = st.columns(columns_per_row)
         for col, (idx, movie) in zip(cols, row_df.iterrows()):
             with col:
+                st.markdown('<div class="poster-3d">', unsafe_allow_html=True)
                 st.image(poster_url(movie["poster_path"]), width='stretch')
+                st.markdown('</div>', unsafe_allow_html=True)
                 label = f"{movie['title']} ({_fmt_year(movie['release_year'])})"
                 st.markdown('<div class="poster-btn">', unsafe_allow_html=True)
                 clicked = st.button(label, key=f"{key_prefix}_{idx}", width='stretch')
@@ -274,6 +276,30 @@ st.markdown(
     }}
     .poster-btn button:hover::before {{
         transform: scaleY(1);
+    }}
+    
+    .poster-3d {{
+        perspective: 900px;
+        padding: 6px 18px 22px 6px;
+    }}
+    .poster-3d [data-testid="stImage"] img {{
+        border-radius: 10px;
+        transform: rotateY(-9deg) rotateX(3deg) scale(0.96);
+        transform-style: preserve-3d;
+        box-shadow:
+            3px 5px 0 rgba(0,0,0,0.55),
+            6px 10px 0 rgba(0,0,0,0.4),
+            9px 15px 0 rgba(0,0,0,0.25),
+            14px 24px 26px rgba(0,0,0,0.65);
+        transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }}
+    .poster-3d [data-testid="stImage"] img:hover {{
+        transform: rotateY(-4deg) rotateX(1.5deg) scale(1.01) translateY(-4px);
+        box-shadow:
+            4px 6px 0 rgba(0,0,0,0.6),
+            8px 13px 0 rgba(0,0,0,0.45),
+            12px 19px 0 rgba(0,0,0,0.3),
+            18px 30px 32px rgba(0,0,0,0.7);
     }}
     
     .rating-pill {{
