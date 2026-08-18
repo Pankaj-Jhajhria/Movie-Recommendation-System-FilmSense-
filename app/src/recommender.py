@@ -7,7 +7,8 @@ import pandas as pd
 from scipy import sparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-DATA_DIR = SCRIPT_DIR.parent.parent / "Data" / "New"
+DATA_DIR = SCRIPT_DIR.parent / "data"
+MODEL_DIR = SCRIPT_DIR.parent / "models"
 
 # ---- Dataset 2 artifacts ----
 DATASET_FILE = "Final_Dataset_2.csv"
@@ -76,12 +77,12 @@ def select_movie(query, df):
 
 def load_artifacts():
     df = pd.read_csv(DATA_DIR / DATASET_FILE)
-    tfidf_matrix = sparse.load_npz(DATA_DIR / TFIDF_MATRIX_FILE)
+    tfidf_matrix = sparse.load_npz(MODEL_DIR / TFIDF_MATRIX_FILE)
 
-    nn_path = DATA_DIR / NN_MODEL_FILE
+    nn_path = MODEL_DIR / NN_MODEL_FILE
     if not nn_path.exists():
         raise FileNotFoundError(
-            f"'{NN_MODEL_FILE}' not found in {DATA_DIR}. Run the training cell "
+            f"'{NN_MODEL_FILE}' not found in {MODEL_DIR}. Run the training cell "
             "that fits NearestNeighbors on tfidf_matrix2 and saves it first."
         )
     with open(nn_path, "rb") as f:
