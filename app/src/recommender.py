@@ -104,7 +104,7 @@ def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
     for dist, i in zip(distances, indices):
         if i == idx:
             continue
-        result_index.append(df.index[i])   # preserve the movie's real df index
+        result_index.append(df.index[i])  
         rows.append({
             'title': df.iloc[i]['title'],
             'similarity_score': round(1 - dist, 4),
@@ -114,7 +114,7 @@ def recommend_by_index(idx, df, tfidf_matrix, nn_model, top_n=10):
             'poster_path': df.iloc[i]['poster_path']
         })
 
-    result_df = pd.DataFrame(rows, index=result_index)   # index carried over, not reset
+    result_df = pd.DataFrame(rows, index=result_index)   
     return result_df.sort_values('similarity_score', ascending=False).head(top_n)
 
 
@@ -130,7 +130,7 @@ def _fmt_year(val):
     if pd.isna(val):
         return "Unknown"
     try:
-        return str(int(float(val)))  # handles 2021.0 -> "2021"
+        return str(int(float(val)))  
     except (ValueError, TypeError):
         return str(val).strip("() ")
 

@@ -3,15 +3,12 @@ import base64
 from pathlib import Path
 
 import streamlit as st
-import random
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
 SRC_DIR = BASE_DIR / "src"
 ASSETS_DIR = BASE_DIR / "Assets"
 LOGO_PATH = ASSETS_DIR / "Logo.png"
-BG_PATH = ASSETS_DIR / "UI_Background.png"
-SIDEBAR_BG_PATH = ASSETS_DIR / "red_sidebar.jpg"
 sys.path.append(str(SRC_DIR))
 
 from recommender import (
@@ -39,8 +36,6 @@ def get_data():
 df, tfidf_matrix, nn_model = get_data()
 
 
-# ---------------- helpers ----------------
-
 def poster_url(path):
     if pd.isna(path) or not str(path).strip():
         return "https://via.placeholder.com/300x450?text=No+Poster"
@@ -64,25 +59,6 @@ def fmt_runtime(minutes):
         return "N/A"
 
 
-NEON_COLORS = ["#00fff2", "#ff00e5", "#b026ff", "#39ff14", "#faff00", "#00d4ff"]
-PARTICLE_COUNT = 45
-
-
-def generate_particles(n=PARTICLE_COUNT):
-    spans = []
-    for _ in range(n):
-        x = round(random.uniform(0, 100), 2)
-        size = round(random.uniform(0.6, 2.4), 2)
-        duration = round(random.uniform(9, 24), 2)
-        delay = round(random.uniform(0, 20), 2)
-        color = random.choice(NEON_COLORS)
-        spans.append(
-            f'<span class="particle" style="'
-            f'--x:{x}%; --size:{size}; --duration:{duration}s; '
-            f'--delay:{delay}s; --color:{color};"></span>'
-        )
-    return "".join(spans)
-
 def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=False):
     """Plain poster + a minimal clickable title/year link beneath it."""
     rows = [movies_df.iloc[i:i + columns_per_row] for i in range(0, len(movies_df), columns_per_row)]
@@ -90,7 +66,7 @@ def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=Fal
         cols = st.columns(columns_per_row)
         for col, (idx, movie) in zip(cols, row_df.iterrows()):
             with col:
-                st.markdown('<div class="poster-3d">', unsafe_allow_html=True)
+                st.markdown('<div class="poster-card">', unsafe_allow_html=True)
                 st.image(poster_url(movie["poster_path"]), width='stretch')
                 st.markdown('</div>', unsafe_allow_html=True)
                 label = f"{movie['title']} ({_fmt_year(movie['release_year'])})"
@@ -104,9 +80,6 @@ def render_selectable_grid(movies_df, columns_per_row, key_prefix, jump_home=Fal
                     st.rerun()
 
 
-# ---------------- session defaults ----------------
-
-# ---------------- session defaults ----------------
 
 defaults = {
     "last_query": "",
@@ -116,219 +89,155 @@ defaults = {
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
 
-if "particles_html" not in st.session_state:
-    st.session_state.particles_html = generate_particles()
-
-bg_b64 = base64.b64encode(BG_PATH.read_bytes()).decode()
-sidebar_bg_b64 = base64.b64encode(SIDEBAR_BG_PATH.read_bytes()).decode()
-
 # ---------------- global styling ----------------
 
 st.markdown(
-    f"""
+    """
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
 
-    html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
+    :root {
+        --sage: #7e9f9b;
+        --sage-light: #a9c1bd;
+        --sage-pale: #eef3f2;
+        --sage-dark: #5f7d79;
+        --ink: #16201e;
+        --white: #ffffff;
+    }
 
-    #bg-fixed {{
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        background-image: url('data:image/png;base64,{bg_b64}');
-        background-size: cover;
-        background-position: center;
-    }}
-    
-    #particles {{
-        position: fixed;
-        inset: 0;
-        z-index: -1;
-        overflow: hidden;
-        pointer-events: none;
-    }}
-    .particle {{
-        position: absolute;
-        bottom: -10px;
-        left: var(--x);
-        width: calc(4px * var(--size));
-        height: calc(4px * var(--size));
-        border-radius: 50%;
-        background: var(--color);
-        box-shadow: 0 0 6px 2px var(--color), 0 0 14px 4px var(--color);
-        opacity: 0;
-        animation: float-up var(--duration) linear infinite;
-        animation-delay: var(--delay);
-    }}
-    @keyframes float-up {{
-        0%   {{ transform: translateY(0) translateX(0); opacity: 0; }}
-        10%  {{ opacity: 0.9; }}
-        50%  {{ transform: translateY(-50vh) translateX(12px); }}
-        90%  {{ opacity: 0.6; }}
-        100% {{ transform: translateY(-105vh) translateX(-12px); opacity: 0; }}
-    }}
-    
-    html, body {{
-    background-color: #0a0a0f;
-    }}
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+    * { transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease; }
+
+    html, body { background-color: var(--sage); }
     .stApp,
     [data-testid="stAppViewContainer"],
     [data-testid="stMain"],
-    .main {{
+    .main {
         background: transparent !important;
-    }}
-    [data-testid="stHeader"] {{
-        background: transparent !important;
-    }}
-    
-    [data-testid="stSidebar"] {{
-        background-image:
-            linear-gradient(180deg, rgba(10,8,14,0.88) 0%, rgba(10,8,14,0.88) 100%),
-            url('data:image/jpeg;base64,{sidebar_bg_b64}');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        border-right: 1px solid rgba(230, 57, 70, 0.15);
-    }}
-    
-    .sidebar-logo {{ display: flex; align-items: center; gap: 10px; }}
-    .sidebar-logo img {{ width: 42px; height: 42px; border-radius: 10px; }}
-    .sidebar-logo .brand {{ font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; color: #ffffff; }}
-    .sidebar-logo .brand span {{ color: #e63946; }}
-    .sidebar-tagline {{ color: #8b8b96; font-size: 0.72rem; margin: 2px 0 16px 52px; }}
+    }
+    [data-testid="stHeader"] { background: transparent !important; }
 
-    .nav-active {{
-        background: #e63946;
-        color: white !important;
+    [data-testid="stSidebar"] {
+        background: var(--sage-pale);
+        border-right: 1px solid rgba(22, 32, 30, 0.1);
+    }
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; }
+    .sidebar-logo img { width: 42px; height: 42px; border-radius: 10px; }
+    .sidebar-logo .brand { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--ink); }
+    .sidebar-logo .brand span { color: var(--sage-dark); }
+    .sidebar-tagline { color: #5c6b68; font-size: 0.72rem; margin: 2px 0 16px 52px; }
+
+    .nav-active {
+        background: var(--sage);
+        color: var(--white) !important;
         font-weight: 600;
         padding: 10px 14px;
         border-radius: 8px;
         margin-bottom: 4px;
-    }}
-    [data-testid="stSidebar"] button {{
+    }
+    [data-testid="stSidebar"] button {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
-        color: #c9c9d1 !important;
+        color: var(--ink) !important;
         text-align: left !important;
         font-weight: 500 !important;
-    }}
-    [data-testid="stSidebar"] button:hover {{ color: #ffffff !important; }}
+        border-radius: 8px !important;
+    }
+    [data-testid="stSidebar"] button:hover {
+        background: rgba(126, 159, 155, 0.18) !important;
+        color: var(--ink) !important;
+    }
 
-    .hero-title {{
+    .hero-title {
         font-family: 'Poppins', sans-serif;
         font-size: 3rem;
         font-weight: 800;
-        color: #ffffff;
+        color: var(--ink);
         line-height: 1.15;
-        text-shadow: 0 2px 20px rgba(0,0,0,0.6);
         margin-bottom: 6px;
-    }}
-    .hero-title .accent {{ color: #e63946; }}
-    .hero-sub {{ color: #c9c9d1; font-size: 1.05rem; margin-bottom: 22px; }}
+    }
+    .hero-title .accent { color: var(--sage-dark); }
+    .hero-sub { color: rgba(22,32,30,0.75); font-size: 1.05rem; margin-bottom: 22px; }
 
-    .section-title {{
+    .section-title {
         font-family: 'Poppins', sans-serif;
         font-size: 1.4rem;
         font-weight: 700;
-        color: #ffffff;
-        border-left: 4px solid #e63946;
+        color: var(--ink);
+        border-left: 4px solid var(--sage-dark);
         padding-left: 12px;
         margin: 28px 0 16px 0;
-    }}
+    }
 
-    .grid-btn button {{
+    .grid-btn button {
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
-        color: #d8d8de !important;
+        color: var(--ink) !important;
         padding: 4px 0 !important;
         font-size: 0.82rem !important;
         text-align: left !important;
-    }}
-    .grid-btn button:hover {{ color: #e63946 !important; }}
+    }
+    .grid-btn button:hover { color: var(--sage-dark) !important; }
 
-    .poster-btn button {{
-        position: relative;
-        z-index: 0;
-        overflow: hidden;
-        background: transparent !important;
-        border: 2px solid #facc15 !important;
+    .poster-card { padding: 4px; }
+    .poster-card [data-testid="stImage"] img {
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.18);
+    }
+    .poster-card [data-testid="stImage"] img:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 14px 24px rgba(0,0,0,0.28);
+    }
+
+    .poster-btn button {
+        background: var(--white) !important;
+        border: 1px solid rgba(22,32,30,0.12) !important;
         border-radius: 8px !important;
         box-shadow: none !important;
-        color: #4ade80 !important;
+        color: var(--ink) !important;
         padding: 10px 12px !important;
         font-size: 0.82rem !important;
         font-weight: 600 !important;
         text-align: left !important;
-        transition: color 0.3s ease;
-    }}
-    .poster-btn button::before {{
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        background: linear-gradient(0deg, rgba(14,165,233,0.85) 0%, rgba(56,189,248,0.55) 100%);
-        transform: scaleY(0);
-        transform-origin: bottom;
-        transition: transform 1.3s ease;
-        pointer-events: none;
-    }}
-    .poster-btn button:hover::before {{
-        transform: scaleY(1);
-    }}
-    
-    .poster-3d {{
-        perspective: 900px;
-        padding: 6px 18px 22px 6px;
-    }}
-    .poster-3d [data-testid="stImage"] img {{
-        border-radius: 10px;
-        transform: rotateY(-9deg) rotateX(3deg) scale(0.96);
-        transform-style: preserve-3d;
-        box-shadow:
-            3px 5px 0 rgba(0,0,0,0.55),
-            6px 10px 0 rgba(0,0,0,0.4),
-            9px 15px 0 rgba(0,0,0,0.25),
-            14px 24px 26px rgba(0,0,0,0.65);
-        transition: transform 0.35s ease, box-shadow 0.35s ease;
-    }}
-    .poster-3d [data-testid="stImage"] img:hover {{
-        transform: rotateY(-4deg) rotateX(1.5deg) scale(1.01) translateY(-4px);
-        box-shadow:
-            4px 6px 0 rgba(0,0,0,0.6),
-            8px 13px 0 rgba(0,0,0,0.45),
-            12px 19px 0 rgba(0,0,0,0.3),
-            18px 30px 32px rgba(0,0,0,0.7);
-    }}
-    
-    .rating-pill {{
+    }
+    .poster-btn button:hover {
+        border-color: var(--sage-dark) !important;
+        color: var(--sage-dark) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+    }
+
+    .rating-pill {
         display: inline-block;
-        background: rgba(230,57,70,0.15);
-        color: #ff8a94;
-        border: 1px solid rgba(230,57,70,0.4);
+        background: var(--sage-pale);
+        color: var(--sage-dark);
+        border: 1px solid rgba(95,125,121,0.35);
         padding: 3px 10px;
         border-radius: 20px;
         font-size: 0.8rem;
         margin: 0 8px 8px 0;
-    }}
+        font-weight: 600;
+    }
 
-    div[data-testid="stTextInput"] input {{
-        background: rgba(255,255,255,0.06) !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
-        color: #ffffff !important;
+    div[data-testid="stTextInput"] input {
+        background: var(--white) !important;
+        border: 1px solid rgba(22,32,30,0.15) !important;
+        color: var(--ink) !important;
         border-radius: 10px !important;
         padding: 12px 16px !important;
-    }}
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: var(--sage-dark) !important;
+        box-shadow: 0 0 0 3px rgba(126,159,155,0.25) !important;
+    }
     </style>
-
-    <div id="bg-fixed"></div>
-    <div id="particles">{st.session_state.particles_html}</div>
     """,
     unsafe_allow_html=True,
 )
 
-# ---------------- sidebar ----------------
 
 NAV_ITEMS = [
     ("Home", "🏠"),
@@ -372,8 +281,6 @@ with st.sidebar:
                 st.rerun()
 
 
-# ---------------- page renderers ----------------
-
 def render_matches(query_stripped):
     st.markdown('<div class="section-title">Matches Found</div>', unsafe_allow_html=True)
     matches = search_titles(query_stripped, df, max_results=24)
@@ -396,7 +303,7 @@ def render_selected_and_recs():
         st.image(poster_url(movie["poster_path"]), width='stretch')
     with col2:
         st.markdown(
-            f"<div style='font-family:Poppins,sans-serif; font-size:2rem; font-weight:800; color:#fff;'>{movie['title']}</div>",
+            f"<div style='font-family:Poppins,sans-serif; font-size:2rem; font-weight:800; color:#16201e;'>{movie['title']}</div>",
             unsafe_allow_html=True,
         )
         st.markdown(
@@ -471,7 +378,7 @@ def render_top_rated():
 def render_genres():
     st.markdown('<div class="section-title">Genres</div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='color:#ffffff; font-size:1.4rem; font-weight:600; margin-top:20px;'>Coming Soon......</div>",
+        "<div style='color:#16201e; font-size:1.4rem; font-weight:600; margin-top:20px;'>Coming Soon......</div>",
         unsafe_allow_html=True,
     )
 
@@ -479,7 +386,7 @@ def render_genres():
 def render_watchlist():
     st.markdown('<div class="section-title">Watchlist</div>', unsafe_allow_html=True)
     st.markdown(
-        "<div style='color:#ffffff; font-size:1.4rem; font-weight:600; margin-top:20px;'>Coming Soon......</div>",
+        "<div style='color:#16201e; font-size:1.4rem; font-weight:600; margin-top:20px;'>Coming Soon......</div>",
         unsafe_allow_html=True,
     )
 
@@ -488,8 +395,8 @@ def render_about():
     st.markdown('<div class="section-title">About FilmSense</div>', unsafe_allow_html=True)
     st.markdown(
         """
-        <div style='color:#c9c9d1; line-height:1.8; max-width:700px; font-size:1rem;'>
-            <p style='color:#ffffff; font-size:1.15rem; font-weight:600; margin-bottom:18px;'>
+        <div style='color:#3d4a48; line-height:1.8; max-width:700px; font-size:1rem;'>
+            <p style='color:#16201e; font-size:1.15rem; font-weight:600; margin-bottom:18px;'>
                 Find your next movie without endlessly searching.
             </p>
             <p>
@@ -505,7 +412,7 @@ def render_about():
                 themes, genres, stories, people, and characteristics.
             </p>
             <p>
-                FilmSense was created by <span style='color:#e63946; font-weight:600;'>Pankaj</span>,
+                FilmSense was created by <span style='color:#5f7d79; font-weight:600;'>Pankaj</span>,
                 an engineering student interested in Machine Learning, Artificial Intelligence,
                 Python, and building useful technology through real-world projects.
             </p>
