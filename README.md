@@ -1,24 +1,15 @@
-<div align="center">
-
-<h1>FilmSense</h1>
-
-<h3><i>Find Films. Feel More.</i></h3>
-
-<p>
-Content-based movie recommendations built from weighted metadata, TF-IDF vectors and<br>
-cosine nearest-neighbour search, served through a Streamlit web app.
+<p align="center">
+  <img src="assets/readme/filmsense-banner.svg" alt="FilmSense - movie recommendation system built on TF-IDF and cosine nearest-neighbour search" width="100%">
 </p>
 
-<p>
-  <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white&labelColor=0b1020" alt="Python">
-  <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white&labelColor=0b1020" alt="Streamlit">
-  <img src="https://img.shields.io/badge/pandas-150458?style=flat-square&logo=pandas&logoColor=white&labelColor=0b1020" alt="pandas">
-  <img src="https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white&labelColor=0b1020" alt="scikit-learn">
-  <img src="https://img.shields.io/badge/SciPy-8CAAE6?style=flat-square&logo=scipy&logoColor=white&labelColor=0b1020" alt="SciPy">
+<p align="center">
+  <b>Search a film you like. Get the ten most similar films in the catalogue.</b><br>
+  Weighted metadata, TF-IDF vectors and exact cosine nearest-neighbour search, served through a Streamlit app.
 </p>
 
-<p>
+<p align="center">
   <a href="#overview">Overview</a> &nbsp;·&nbsp;
+  <a href="#key-features">Features</a> &nbsp;·&nbsp;
   <a href="#system-architecture">Architecture</a> &nbsp;·&nbsp;
   <a href="#how-it-works">How it works</a> &nbsp;·&nbsp;
   <a href="#dataset-and-data-processing">Dataset</a> &nbsp;·&nbsp;
@@ -27,16 +18,15 @@ cosine nearest-neighbour search, served through a Streamlit web app.
   <a href="#limitations-and-known-issues">Limitations</a>
 </p>
 
-<table>
+<table align="center">
   <tr>
-    <td align="center" width="25%"><b>3,911</b><br><sub>films in the curated catalogue</sub></td>
-    <td align="center" width="25%"><b>27,548</b><br><sub>TF-IDF vocabulary terms</sub></td>
-    <td align="center" width="25%"><b>Cosine</b><br><sub>exact brute-force kNN</sub></td>
-    <td align="center" width="25%"><b>Top 10</b><br><sub>ranked films per title</sub></td>
+    <td align="center" width="20%"><b>3,911</b><br><sub>films in the curated catalogue</sub></td>
+    <td align="center" width="20%"><b>1,072,255</b><br><sub>raw records filtered down</sub></td>
+    <td align="center" width="20%"><b>27,548</b><br><sub>TF-IDF vocabulary terms</sub></td>
+    <td align="center" width="20%"><b>Exact cosine</b><br><sub>brute-force kNN</sub></td>
+    <td align="center" width="20%"><b>Top 10</b><br><sub>ranked films per title</sub></td>
   </tr>
 </table>
-
-</div>
 
 ---
 
@@ -58,38 +48,22 @@ Similarity is measured on what the films are made of: genres, thematic keywords,
 
 ## Key Features
 
-<table>
-  <tr>
-    <td width="33%" valign="top">
-      <b>Layered title search</b><br>
-      Exact, then partial, then fuzzy matching (<code>difflib</code>, cutoff 0.6) over normalised titles, with a numbered picker in the CLI and a poster grid in the app.
-    </td>
-    <td width="33%" valign="top">
-      <b>Weighted metadata features</b><br>
-      Genres, keywords and director count three times; the four billed cast fields count twice; producers, production companies and overview count once.
-    </td>
-    <td width="33%" valign="top">
-      <b>Cosine nearest-neighbour retrieval</b><br>
-      <code>NearestNeighbors(metric="cosine", algorithm="brute")</code> over a sparse TF-IDF matrix. Scores are reported as <code>1 − cosine distance</code>.
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <b>Chained exploration</b><br>
-      Click any recommended poster to make it the new query and keep following the graph from film to film.
-    </td>
-    <td valign="top">
-      <b>Detail view</b><br>
-      Backdrop, poster, TMDB and IMDb rating pills, release year and runtime for the selected film.
-    </td>
-    <td valign="top">
-      <b>Browse modes and CLI</b><br>
-      <i>Trending Now</i>, <i>Explore</i> and <i>Top Rated</i> pages, plus a command-line interface in <code>src/recommender.py</code>.
-    </td>
-  </tr>
-</table>
+| Feature | How it works | Implemented in |
+|---|---|---|
+| **Layered title search** | Exact, then partial, then fuzzy matching (`difflib`, cutoff 0.6) over normalised titles. The CLI shows a numbered picker; the app shows a poster grid. | `search_titles` |
+| **Weighted metadata features** | Genres, keywords and director count three times; the four billed cast fields twice; producers, production companies and overview once. | `combine_features` (notebook) |
+| **Cosine nearest-neighbour retrieval** | `NearestNeighbors(metric="cosine", algorithm="brute")` over a sparse TF-IDF matrix. Scores are reported as `1 - cosine distance`. | `recommend_by_index` |
+| **Chained exploration** | Click any recommended poster to make it the new query and keep following the graph from film to film. | `app.py` |
+| **Detail view** | Backdrop, poster, TMDB and IMDb rating pills, release year and runtime for the selected film. | `render_selected_and_recs` |
+| **Browse modes** | *Trending Now*, *Explore* (shuffle) and *Top Rated* pages. | `app.py` |
+| **Command-line interface** | `python src\recommender.py "<title>" --top_n N` for terminal use. | `recommender.py` |
 
-**Planned, not yet implemented:** a *Genres* page and a *Watchlist*. Both pages exist in the sidebar as "Coming Soon" placeholders, and the *Add to Watchlist* button currently shows a notice only.
+**Planned, not yet implemented**
+
+| Feature | Current state |
+|---|---|
+| Genres page | Sidebar placeholder, "Coming Soon" |
+| Watchlist | Sidebar placeholder; the *Add to Watchlist* button only shows a notice |
 
 ---
 
@@ -112,40 +86,46 @@ The Streamlit app uses a light sage-green theme (Poppins and Inter fonts) with a
 
 ## System Architecture
 
-The system has two halves. An **offline build** (three notebooks) turns a large raw metadata file into three persisted artifacts. A **runtime** layer (`recommender.py` and `app.py`) loads those artifacts once and answers queries from memory.
+The system has three layers. An **offline build** (three notebooks) turns a large raw metadata file into persisted artifacts. A **runtime** layer (`recommender.py` and `app.py`) loads those artifacts once and answers every query from memory: title search, nearest-neighbour retrieval, ranking and rendering in the Streamlit interface.
 
 ```mermaid
-flowchart LR
+flowchart TB
     classDef data fill:#0b1220,stroke:#38bdf8,stroke-width:1.5px,color:#e2e8f0
     classDef proc fill:#1a1033,stroke:#a78bfa,stroke-width:1.5px,color:#ede9fe
     classDef app  fill:#0f172a,stroke:#e879f9,stroke-width:1.5px,color:#fdf4ff
+    classDef idle fill:#111827,stroke:#64748b,stroke-dasharray:4 3,color:#94a3b8
 
-    subgraph BUILD["Offline build - notebooks"]
+    subgraph BUILD["1 - Offline build (notebooks)"]
         direction LR
-        RAW[("Raw IMDB + TMDB<br/>metadata CSV<br/>1,072,255 rows")]:::data
-        FILTER["Filter<br/>runtime 70-250 min<br/>vote_count >= 1,000"]:::proc
-        TAGS["combine_features<br/>weighted token repetition<br/>produces tags"]:::proc
-        TFIDF["TfidfVectorizer<br/>27,548 terms"]:::proc
-        NN["NearestNeighbors<br/>cosine, brute force"]:::proc
-        RAW --> FILTER --> TAGS --> TFIDF --> NN
+        RAW[("Movie metadata<br/>raw IMDB + TMDB CSV<br/>1,072,255 rows")]:::data
+        FILTER["Preprocessing<br/>runtime 70-250 min<br/>vote_count >= 1,000"]:::proc
+        TAGS["Feature engineering<br/>combine_features<br/>weighted tags"]:::proc
+        TFIDF["TF-IDF<br/>TfidfVectorizer<br/>27,548 terms"]:::proc
+        FIT["Index<br/>NearestNeighbors fit<br/>cosine, brute force"]:::proc
+        RAW --> FILTER --> TAGS --> TFIDF --> FIT
     end
 
-    subgraph STORE["Persisted artifacts"]
-        direction TB
+    subgraph STORE["2 - Persisted artifacts"]
+        direction LR
         CSV[("data/<br/>Final_Dataset_2.csv")]:::data
         MAT[("models/<br/>tfidf_matrix2.npz")]:::data
         PKL[("models/<br/>nearest_neighbors2.pkl")]:::data
+        VEC[("models/tfidf_vectorizer2.pkl<br/>saved, not loaded at run time")]:::idle
     end
 
-    subgraph RUN["Runtime"]
-        direction TB
-        UI["app.py<br/>Streamlit UI"]:::app
-        REC["src/recommender.py<br/>search, kNN, formatting"]:::app
-        UI <--> REC
+    subgraph RUN["3 - Runtime (recommender.py + app.py)"]
+        direction LR
+        LOAD["load_artifacts<br/>cached once"]:::app
+        SEARCH["search_titles<br/>exact, partial, fuzzy"]:::app
+        KNN["kneighbors<br/>50 nearest, cosine"]:::app
+        RANK["Ranking<br/>drop self, 1 - distance<br/>sort, keep top_n"]:::app
+        UI["Streamlit UI<br/>detail panel and<br/>poster grids"]:::app
+        LOAD --> SEARCH --> KNN --> RANK --> UI
+        UI -. clicked film becomes the query .-> KNN
     end
 
-    BUILD -. writes .-> STORE
-    STORE -->|loaded once via cache_resource| RUN
+    BUILD -->|writes| STORE
+    STORE -->|read once at start-up| RUN
 ```
 
 | Component | Responsibility | Data in → out |
@@ -237,6 +217,17 @@ scikit-learn's `"cosine"` metric returns the distance $1-\cos(\mathbf{a},\mathbf
 
 **Source.** The notebooks read a single file named `IMDB TMDB Movie Metadata Big Dataset (1M).csv`, which combines TMDB-style columns (title, ratings, votes, runtime, overview, keywords, image paths) with IMDb-style columns (`IMDB_Rating`, `Meta_score`, `Star1`–`Star4`, `Director`). The notebooks do not record where it was downloaded from or under which licence, so check the original publisher's terms before redistributing the raw file or data derived from it. The raw file is only needed to regenerate the artifacts, not to run the app.
 
+### Dataset at a glance
+
+| Measure | Value | Source |
+|---|---:|---|
+| Raw records | 1,072,255 | `Secondary_Dataset_preparation.ipynb` |
+| Raw columns / after dropping unused / final | 42 / 23 / 11 | same |
+| Films kept | 3,911 (about 0.36%) | same |
+| TF-IDF matrix | 3,911 x 27,548 (sparse) | `TF-IDF.ipynb` |
+| Neighbours retrieved per query | 50 (49 after removing the query film) | `Recommendation_Engine.ipynb` |
+| Films missing `IMDB_Rating` | 817 (about 21%) | `Secondary_Dataset_preparation.ipynb` |
+
 ### Filtering funnel
 
 | Step | Rows remaining |
@@ -318,18 +309,18 @@ An empty or punctuation-only query, or a query with no match, returns an empty r
 
 ## Technology Stack
 
-| Component | Technology | Actual role |
+| Layer | Technology | Actual role |
 |---|---|---|
-| Language | Python (notebooks ran on 3.13.9) | Whole pipeline and app |
-| Data handling | pandas | CSV I/O, filtering, feature construction, result tables |
-| Sparse storage | SciPy (`scipy.sparse`) | `save_npz` / `load_npz` for the TF-IDF matrix |
-| Vectorisation | scikit-learn `TfidfVectorizer` | Weighted bag-of-words to TF-IDF vectors |
-| Retrieval | scikit-learn `NearestNeighbors` | Exact cosine kNN, brute force |
-| Fuzzy matching | `difflib` (standard library) | Typo-tolerant title search |
-| Persistence | `pickle`, `.npz` | Saved model and sparse matrix |
-| Interface | Streamlit | Pages, session state, `st.cache_resource`, poster grids, custom CSS |
-| Remote assets | TMDB image CDN, Google Fonts | Posters and backdrops; Poppins and Inter |
-| Experimentation | Jupyter notebooks | Dataset preparation, vectorisation, index fitting |
+| **Language** | Python (notebooks ran on 3.13.9) | Whole pipeline and app |
+| **Data** | pandas | CSV I/O, filtering, feature construction, result tables |
+| | SciPy (`scipy.sparse`) | `save_npz` / `load_npz` for the TF-IDF matrix |
+| **Machine learning** | scikit-learn `TfidfVectorizer` | Weighted bag-of-words to TF-IDF vectors |
+| | scikit-learn `NearestNeighbors` | Exact cosine kNN, brute force |
+| | `difflib` (standard library) | Typo-tolerant title search |
+| **Persistence** | `pickle`, `.npz` | Saved model and sparse matrix |
+| **Application** | Streamlit | Pages, session state, `st.cache_resource`, poster grids, custom CSS |
+| **Remote assets** | TMDB image CDN, Google Fonts | Posters and backdrops; Poppins and Inter (loaded by the app at run time) |
+| **Tooling** | Jupyter notebooks | Dataset preparation, vectorisation, index fitting |
 
 The project reads image files from the TMDB CDN but does not call the TMDB API.
 
@@ -345,6 +336,9 @@ FilmSense/
 ├── requirements.txt               # dependency manifest
 ├── Assets/
 │   └── Logo.png                   # page icon and sidebar logo (required by app.py)
+├── assets/
+│   └── readme/
+│       └── filmsense-banner.svg   # README banner (self-contained SVG)
 ├── src/
 │   └── recommender.py             # artifact loading, title search, kNN, CLI
 ├── data/
@@ -368,8 +362,8 @@ FilmSense/
 **Windows PowerShell**
 
 ```powershell
-git clone https://github.com/<your-username>/FilmSense.git
-cd FilmSense
+git clone https://github.com/Pankaj-Jhajhria/Movie-Recommendation-System.git
+cd Movie-Recommendation-System
 
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -390,8 +384,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 <summary><b>Linux / macOS</b></summary>
 
 ```bash
-git clone https://github.com/<your-username>/FilmSense.git
-cd FilmSense
+git clone https://github.com/Pankaj-Jhajhria/Movie-Recommendation-System.git
+cd Movie-Recommendation-System
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -411,8 +405,8 @@ The app expects the artifacts and logo listed under [Configuration and Data Requ
 ## Quick Start
 
 ```powershell
-git clone https://github.com/<your-username>/FilmSense.git
-cd FilmSense
+git clone https://github.com/Pankaj-Jhajhria/Movie-Recommendation-System.git
+cd Movie-Recommendation-System
 python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 streamlit run app.py
@@ -485,6 +479,17 @@ print(recs[["title", "similarity_score", "vote_average", "release_year"]])
 | Offline ranking metrics (e.g. precision@k, NDCG) | Not computed |
 | Latency / throughput | Not measured |
 | User feedback or A/B comparison | Not conducted |
+
+**What is verified about the implementation** (from the source files, not from a benchmark):
+
+| Fact | Value |
+|---|---|
+| Catalogue size | 3,911 films |
+| Retrieval | Exact cosine distance to every film (no approximation) |
+| Candidates fetched per query | 50, including the query film |
+| Maximum usable `top_n` | 49 |
+| Score range | 0 to 1 (TF-IDF vectors are non-negative) |
+| Artifact loading | Once per server process, via `st.cache_resource` |
 
 `similarity_score` is a measure of **metadata overlap**, not a prediction of enjoyment. A high score means two films share many weighted terms; it does not mean the user will like both.
 
@@ -604,8 +609,8 @@ Contributions are welcome. The project does not yet have an automated test suite
 
 ```powershell
 # 1. Fork the repository on GitHub, then clone your fork
-git clone https://github.com/<your-username>/FilmSense.git
-cd FilmSense
+git clone https://github.com/Pankaj-Jhajhria/Movie-Recommendation-System.git
+cd Movie-Recommendation-System
 
 # 2. Create a branch
 git checkout -b feature/short-description
